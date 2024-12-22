@@ -1,10 +1,16 @@
 #!/bin/bash
 
-# Install jq if not installed
-if ! command -v jq &> /dev/null; then
-    echo "jq not found, installing..."
-    pkg install jq -y
-fi
+# Install necessary packages if not installed
+install_if_missing() {
+    if ! command -v $1 &> /dev/null; then
+        echo "$1 not found, installing..."
+        pkg install $1 -y
+    fi
+}
+
+install_if_missing jq
+install_if_missing lolcat
+install_if_missing cowsay
 
 # Colors and text effects
 RED=$(tput setaf 1)
@@ -25,6 +31,21 @@ display_title() {
     echo "    Nyonge Termux API"
     echo "============================"
     echo "${RESET}"
+}
+
+# Function to show loading bar
+loading_bar() {
+    echo -n "${CYAN}Loading..."
+    for i in {1..10}; do
+        sleep 0.3
+        echo -n "."
+    done
+    echo "${RESET}"
+}
+
+# Function to log outputs to a file for debugging
+log_output() {
+    echo "$1" >> termux_log.txt
 }
 
 # Function to display the main menu
@@ -123,112 +144,7 @@ display_media_menu() {
     echo -n "${BOLD}${YELLOW}Choose an option: ${RESET}"
 }
 
-# Function to display contacts
-display_contacts() {
-    echo "${BOLD}${GREEN}Contacts:${RESET}"
-    termux-contact-list | jq . 2>/dev/null || termux-contact-list
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show battery status
-show_battery_status() {
-    echo "${BOLD}${GREEN}Battery Status:${RESET}"
-    termux-battery-status | jq . 2>/dev/null || termux-battery-status
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to list Wi-Fi networks
-list_wifi_networks() {
-    echo "${BOLD}${GREEN}Wi-Fi Networks:${RESET}"
-    termux-wifi-scaninfo | jq . 2>/dev/null || termux-wifi-scaninfo
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to check device location
-check_device_location() {
-    echo "${BOLD}${GREEN}Device Location:${RESET}"
-    termux-location | jq . 2>/dev/null || termux-location
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show device info
-show_device_info() {
-    echo "${BOLD}${GREEN}Device Info:${RESET}"
-    termux-telephony-deviceinfo | jq . 2>/dev/null || termux-telephony-deviceinfo
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show call log
-show_call_log() {
-    echo "${BOLD}${GREEN}Call Log:${RESET}"
-    termux-call-log | jq . 2>/dev/null || termux-call-log
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to vibrate device
-vibrate_device() {
-    echo -n "${BOLD}${YELLOW}Enter duration in milliseconds: ${RESET}"
-    read duration
-    termux-vibrate -d $duration
-    echo "${BOLD}${GREEN}Device vibrated for $duration ms.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to control torch
-torch_control() {
-    echo -n "${BOLD}${YELLOW}Enter 'on' to turn on the torch or 'off' to turn off: ${RESET}"
-    read state
-    termux-torch $state
-    echo "${BOLD}${GREEN}Torch turned $state.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show storage info
-show_storage_info() {
-    echo "${BOLD}${GREEN}Storage Info:${RESET}"
-    termux-storage-get | jq . 2>/dev/null || termux-storage-get
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to record audio
-record_audio() {
-    echo -n "${BOLD}${YELLOW}Enter duration in seconds: ${RESET}"
-    read duration
-    termux-audio-record -d $duration -f 3gp -o /sdcard/audio_record.3gp
-    echo "${BOLD}${GREEN}Audio recorded for $duration seconds.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to take photo
-take_photo() {
-    echo -n "${BOLD}${YELLOW}Enter file name (without extension): ${RESET}"
-    read filename
-    termux-camera-photo -c back /sdcard/$filename.jpg
-    echo "${BOLD}${GREEN}Photo saved as /sdcard/$filename.jpg.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to scan barcode
-scan_barcode() {
-    echo "${BOLD}${GREEN}Scan a barcode...${RESET}"
-    termux-camera-photo -c back /sdcard/barcode.jpg
-    termux-barcode-scan
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to send SMS
+# Function to send SMS with success message
 send_sms() {
     echo -n "${BOLD}${YELLOW}Enter phone number: ${RESET}"
     read number
@@ -236,33 +152,8 @@ send_sms() {
     read message
     termux-sms-send -n $number "$message"
     echo "${BOLD}${GREEN}SMS sent to $number.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to make toast
-make_toast() {
-    echo -n "${BOLD}${YELLOW}Enter message: ${RESET}"
-    read message
-    termux-toast "$message"
-    echo "${BOLD}${GREEN}Toast made with message: $message.${RESET}"
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show sensor info
-show_sensor_info() {
-    echo "${BOLD}${GREEN}Sensor Info:${RESET}"
-    termux-sensor -l
-    echo "Press any key to return to the menu..."
-    read -n 1
-}
-
-# Function to show network info
-show_network_info() {
-    echo "${BOLD}${GREEN}Network Info:${RESET}"
-    termux-wifi-connectioninfo | jq . 2>/dev/null || termux-wifi-connectioninfo
-    echo "Press any key to return to the menu..."
+    echo "${GREEN}Operation successfully completed. Press any key to return.${RESET}"
+    log_output "SMS sent to $number: $message"
     read -n 1
 }
 
@@ -278,9 +169,17 @@ while true; do
                 display_contacts_menu
                 read choice
                 case $choice in
-                    1) display_contacts ;;
-                    2) show_call_log ;;
-                    3) send_sms ;;
+                    1) 
+                        loading_bar
+                        termux-contact-list | jq . || termux-contact-list
+                        ;;
+                    2) 
+                        loading_bar
+                        termux-call-log | jq . || termux-call-log
+                        ;;
+                    3) 
+                        send_sms
+                        ;;
                     4) break ;;
                     *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
                 esac
@@ -292,80 +191,26 @@ while true; do
                 display_device_info_menu
                 read choice
                 case $choice in
-                    1) show_battery_status ;;
-                    2) show_device_info ;;
-                    3) check_device_location ;;
+                    1) 
+                        show_battery_status
+                        ;;
+                    2) 
+                        show_device_info
+                        ;;
+                    3) 
+                        check_device_location
+                        ;;
                     4) break ;;
                     *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
                 esac
             done
             ;;
-        3)
-            while true; do
-                display_title
-                display_network_menu
-                read choice
-                case $choice in
-                    1) list_wifi_networks ;;
-                    2) show_network_info ;;
-                    3) break ;;
-                    *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
-                esac
-            done
+        9) 
+            echo "Exiting. Goodbye!"
+            exit 0
             ;;
-        4)
-            while true; do
-                display_title
-                display_sensors_menu
-                read choice
-                case $choice in
-                    1) show_sensor_info ;;
-                    2) vibrate_device ;;
-                    3) break ;;
-                    *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
-                esac
-            done
+        *)
+            echo "${BOLD}${RED}Invalid option. Please try again.${RESET}"
             ;;
-        5)
-            while true; do
-                display_title
-                display_storage_menu
-                read choice
-                case $choice in
-                    1) show_storage_info ;;
-                    2) break ;;
-                    *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
-                esac
-            done
-            ;;
-        6)
-            while true; do
-                display_title
-                display_system_menu
-                read choice
-                case $choice in
-                    1) torch_control ;;
-                    2) make_toast ;;
-                    3) break ;;
-                    *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
-                esac
-            done
-            ;;
-        7)
-            while true; do
-                display_title
-                display_media_menu
-                read choice
-                case $choice in
-                    1) record_audio ;;
-                    2) take_photo ;;
-                    3) scan_barcode ;;
-                    4) break ;;
-                    *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
-                esac
-            done
-            ;;
-        8) echo "${BOLD}${RED}Exiting...${RESET}"; exit 0 ;;
-        *) echo "${BOLD}${RED}Invalid option. Please try again.${RESET}" ;;
     esac
 done
